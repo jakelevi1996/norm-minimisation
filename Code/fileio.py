@@ -1,6 +1,6 @@
 import numpy as np
 
-DEFAULT_FOLDER = "Code/data/"
+DEFAULT_FOLDER = "Data/"
 DEFAULT_FILENAME = DEFAULT_FOLDER + "matrices.npz"
 
 a_list = ["A" + str(i) for i in range(1, 6)]
@@ -22,7 +22,6 @@ def csv_to_npz(
 
 def load_A_b(index=1, filename=DEFAULT_FILENAME):
     with np.load(filename) as data:
-        # array_list = [data[name] for name in array_names]
         A = data["A" + str(index)]
         b = data["b" + str(index)]
     return A, b
@@ -31,7 +30,6 @@ if __name__ == "__main__":
     print(DEFAULT_FILES_LIST)
     # csv_to_npz()
     A, b = load_A_b()
-    print(A.shape)
-    print(b.shape)
+    print(A.shape, b.shape)
     # print(A)
     # print(b)

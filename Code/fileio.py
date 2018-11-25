@@ -26,6 +26,17 @@ def load_A_b(index=1, filename=DEFAULT_FILENAME):
         b = data["b" + str(index)]
     return A, b
 
+def load_results(
+    index=1, filename_prefix="Results/Protected/results_problem_"
+):
+    with np.load(filename_prefix + str(index) + ".npz") as data:
+        x_vals = data["x_vals"]
+        t_vals = data["t_vals"]
+    
+    n = x_vals.shape[1]
+    return x_vals, t_vals, n
+
+
 if __name__ == "__main__":
     print(DEFAULT_FILES_LIST)
     # csv_to_npz()

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm
 from scipy.optimize import linprog
 from time import time
 
@@ -57,6 +58,25 @@ def analyse_methods(
     problem_list=range(1, 6), num_attempts=3, max_simplex_n=256,
     folder=results.DEFAULT_FOLDER, filename_prefix="results_problem_"
 ):
+    """Analyse methods of norm-minimisation for different methods.
+
+    One `.npz` results file is saved for each problem, containing 2
+    `np.ndarray`s, 1 named `x_vals` and 1 named `t_vals`.
+
+    `x_vals` contains 3 rows, which respectively contain the solution-vector
+    found by minimising:
+     - The l2 norm
+     - The l1 norm
+     - The linfinity norm
+    
+    `t_vals` contains either 3 or 5 rows, which respectively contain the times
+    taken for differet attempts at minimisation using:
+     - Least squares and the l2 norm
+     - Interior point methods and the l1 norm
+     - Interior point methods and the linfinity norm
+     - [Simplex and the l1 norm]
+     - [Simplex and the linfinity norm]
+    """
     start_time = time()
     for problem in problem_list:
         A, b = fileio.load_A_b(problem)
@@ -87,13 +107,114 @@ def analyse_methods(
             x_vals=x_vals, t_vals=t_vals
         )
     time_taken = time() - start_time
-    print("All problems analysed in {:.4g} s".format(time_taken))
+    if time_taken > 60:
+        m, s = divmod(time_taken, 60)
+        print("All problems analysed in {}m {}s".format(m, s))
+    else: print("All problems analysed in {:.4g}s".format(time_taken))
+
+def smooth_l1(A, x, b, epsilon):
+    Axb = A.dot(x) - b
+    return np.sqrt(Axb ** 2 + epsilon ** 2).sum()
+
+def smooth_l1_gradient(A, x, b, epsilon):
+    Axb = A.dot(x) - b
+    u = Axb / np.sqrt(Axb ** 2 + epsilon ** 2)
+    return A.T.dot(u)
+
+def smooth_l1_hessian(A, x, b, epsilon):
+    # Need to test element-wise multiplication of vector and matrix
+    pass
+
+def smooth_l1_backtrack_condition(A, x, b, epsilon, t, grad, alpha):
+    old_val = smooth_l1(A, x, b, epsilon)
+    new_val = smooth_l1(A, x - t * grad, b, epsilon)
+    min_decrease = alpha * t * grad.dot(grad)
+
+    return old_val - new_val > min_decrease
+
+
+def min_smooth_l1_backtracking(
+    A, b, epsilon=0.01, t0=1e-2, alpha=0.5, beta=0.5, grad_tol=1e-3,
+    random_init=False
+):
+    n = A.shape[1]
+    if random_init: x = np.random.normal(size=n)
+    else: x = np.zeros(shape=n)
+    grad = smooth_l1_gradient(A, x, b, epsilon)
+    outer_step = 0
+    while norm(grad) >= grad_tol:
+        t = t0
+        inner_step = 0
+        while not smooth_l1_backtrack_condition(
+            A, x, b, epsilon, t, grad, alpha
+        ):
+            t = beta * t
+            inner_step += 1
+        x = x - t * grad
+        grad = smooth_l1_gradient(A, x, b, epsilon)
+        print(
+            "Outer = {}, inner = {},".format(outer_step, inner_step),
+            "norm(grad) = {:.4}, func = {:.10}".format(
+                norm(grad), smooth_l1(A, x, b, epsilon)
+            )
+        )
+        outer_step += 1
+    return x
+
+
+def min_smooth_l1_forward_backtracking(
+    A, b, epsilon=0.01, t0=1e-2, alpha=0.5, beta=0.5, grad_tol=1e-3,
+    random_init=False
+):
+    n = A.shape[1]
+    if random_init: x = np.random.normal(size=n)
+    else: x = np.zeros(shape=n)
+    grad = smooth_l1_gradient(A, x, b, epsilon)
+    outer_step = 0
+    t = t0
+    while norm(grad) >= grad_tol:
+        inner_step = 0
+        if not smooth_l1_backtrack_condition(
+            A, x, b, epsilon, t, grad, alpha
+        ):
+            while not smooth_l1_backtrack_condition(
+                A, x, b, epsilon, t, grad, alpha
+            ):
+                t = beta * t
+                inner_step += 1
+        else:
+            while smooth_l1_backtrack_condition(
+                A, x, b, epsilon, t, grad, alpha
+            ):
+                t = t / beta
+                inner_step += 1
+            t = beta * t
+            
+        x = x - t * grad
+        grad = smooth_l1_gradient(A, x, b, epsilon)
+        print(
+            "Outer = {}, inner = {},".format(outer_step, inner_step),
+            "norm(grad) = {:.4}, func = {:.10}".format(
+                norm(grad), smooth_l1(A, x, b, epsilon)
+            )
+        )
+        outer_step += 1
+    return x
+
 
 if __name__ == "__main__":
-    A, b = fileio.load_A_b(3)
-    print(A.shape, b.shape)
+    A, b = fileio.load_A_b(1)
+    # print(A.shape, b.shape)
     # x, _, _ = l1_min(A, b, method='interior-point')
+    # x, _, _ = linf_min(A, b, method='interior-point')
+    # x, _, _ = l2_min(A, b)
     # print(x.shape)
-    # linf_min(A, b)
-    # l2_min(A, b)
-    analyse_methods(problem_list=[1, 2, 3], max_simplex_n=0)
+    # print("{:.4}".format(norm(x, 1)))
+    # analyse_methods(
+    #     problem_list=[1, 2, 3], max_simplex_n=0, filename_prefix='test'
+    # )
+    # analyse_methods()
+    # min_smooth_l1_backtracking(A, b)
+    min_smooth_l1_forward_backtracking(A, b)
+    # min_smooth_l1_backtracking(A, b, beta=0.1)
+    # min_smooth_l1_backtracking(A, b, t0=1e-3, alpha=0.9)

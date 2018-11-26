@@ -46,14 +46,13 @@ def linf_min(A, b, method='interior-point'):
 
 def l2_min(A, b):
     assert A.ndim == 2 and b.ndim == 1
-    n = A.shape[1]
     start_time = time()
     x, residual, rank, _ = np.linalg.lstsq(A, b, rcond=None)
     time_taken = time() - start_time
     print("Residual is {:.8g}, rank is {}, time taken is {:.4g} s".format(
         *residual, rank, time_taken
     ))
-    return x[:n], time_taken, rank
+    return x, time_taken, rank
 
 def analyse_methods(
     problem_list=range(1, 6), num_attempts=3, max_simplex_n=256,
@@ -171,6 +170,7 @@ def min_smooth_l1_gradient_descent(
                 t = t / beta
                 inner_step -= 1
             t = beta * t
+            inner_step += 1
             
         x = x - t * grad
         grad = smooth_l1_gradient(A, x, b, epsilon)
@@ -211,6 +211,7 @@ def min_smooth_l1_newton(
                 t = t / beta
                 inner_step -= 1
             t = beta * t
+            inner_step += 1
         
         x = x + t * v
         grad = smooth_l1_gradient(A, x, b, epsilon)
@@ -220,8 +221,76 @@ def min_smooth_l1_newton(
         outer_step += 1
     return x
 
+def smooth_card(A, x, b, epsilon, gamma):
+    return norm(A.dot(x) - b, 2) + gamma * np.sqrt(x**2 + epsilon**2).sum()
+
+def smooth_card_grad(A, x, b, epsilon, gamma):
+    Axb = A.dot(x) - b
+    return A.T.dot(Axb) / norm(Axb) + gamma * x / np.sqrt(x**2 + epsilon**2)
+
+def smooth_card_backtrack_condition(
+    A, x, b, epsilon, gamma, t, delta, alpha, grad
+):
+    old_val = smooth_card(A, x, b, epsilon, gamma)
+    new_val = smooth_card(A, x + t * delta, b, epsilon, gamma)
+    min_decrease = -alpha * t * grad.dot(delta)
+
+    return old_val - new_val > min_decrease
+
+def min_smooth_card_gradient_descent(
+    A, b, epsilon=1e-3, gamma=2.09, t0=1e-2, alpha=0.5, beta=0.5,
+    grad_tol=1e-5, random_init=False, forward_tracking=True
+):
+    n = A.shape[1]
+    if random_init: x = np.random.normal(size=n)
+    else: x = np.zeros(shape=n)
+    grad = smooth_card_grad(A, x, b, epsilon, gamma)
+    outer_step = 0
+    t = t0
+    while norm(grad) >= grad_tol:
+        inner_step = 0
+        if not forward_tracking: t = t0
+        if not smooth_card_backtrack_condition(
+            A, x, b, epsilon, gamma, t, -grad, alpha, grad
+        ):
+            while not smooth_card_backtrack_condition(
+                A, x, b, epsilon, gamma, t, -grad, alpha, grad
+            ):
+                t = beta * t
+                inner_step += 1
+        elif forward_tracking:
+            while smooth_card_backtrack_condition(
+                A, x, b, epsilon, gamma, t, -grad, alpha, grad
+            ):
+                t = t / beta
+                inner_step -= 1
+            t = beta * t
+            inner_step += 1
+            
+        x = x - t * grad
+        grad = smooth_card_grad(A, x, b, epsilon, gamma)
+        display_backtracking_progress(
+            outer_step, inner_step, grad, A, x, b, epsilon
+        )
+        outer_step += 1
+    sparsity = np.abs(x) >= epsilon
+    cardinality = (sparsity).sum()
+    print("Gamma = {:.4}, cardinality = {}".format(gamma, cardinality))
+    print("Sparsity pattern (indexing starting at 1) is:")
+    print(np.arange(x.size)[sparsity] + 1)
+    return x, sparsity, cardinality
+
+def min_sparse_l2(A, b, sparsity):
+    A = A[:, sparsity]
+    x, residual, rank, _ = np.linalg.lstsq(A, b, rcond=None)
+    print("Residual is {:.8g}, rank is {}".format(*residual, rank))
+    print("Values of x are:")
+    print(x)
+    return x
+
+
 if __name__ == "__main__":
-    A, b = fileio.load_A_b(3)
+    A, b = fileio.load_A_b(5)
     # print(A.shape, b.shape)
     # x, _, _ = l1_min(A, b, method='interior-point')
     # x, _, _ = linf_min(A, b, method='interior-point')
@@ -233,8 +302,10 @@ if __name__ == "__main__":
     # )
     # analyse_methods()
     # min_smooth_l1_backtracking(A, b)
-    min_smooth_l1_gradient_descent(A, b, forward_tracking=True)
+    # min_smooth_l1_gradient_descent(A, b, epsilon=1e-1, forward_tracking=True)
     # min_smooth_l1_backtracking(A, b, beta=0.1)
     # min_smooth_l1_backtracking(A, b, t0=1e-3, alpha=0.9)
     # min_smooth_l1_newton(A, b)
     # min_smooth_l1_newton(A, b, forward_tracking=True, diag_approx=True)
+    x, sparsity, _ = min_smooth_card_gradient_descent(A, b, gamma=2.2)
+    min_sparse_l2(A, b, sparsity)

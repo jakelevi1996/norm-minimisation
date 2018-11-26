@@ -138,41 +138,14 @@ def display_backtracking_progress(
     outer_step, inner_step, grad, A, x, b, epsilon
 ):
     print(
-        "Outer = {}, inner = {},".format(outer_step, inner_step),
-        "norm(grad) = {:.4}, func = {:.10}".format(
-            norm(grad), smooth_l1(A, x, b, epsilon)
+        "Outer = {}, inner = {:<3}, norm(grad) = {:.4}, func = {:.10}".format(
+            outer_step, inner_step, norm(grad), smooth_l1(A, x, b, epsilon)
         )
     )
 
-def min_smooth_l1_backtracking(
+def min_smooth_l1_gradient_descent(
     A, b, epsilon=0.01, t0=1e-2, alpha=0.5, beta=0.5, grad_tol=1e-3,
-    random_init=False
-):
-    n = A.shape[1]
-    if random_init: x = np.random.normal(size=n)
-    else: x = np.zeros(shape=n)
-    grad = smooth_l1_gradient(A, x, b, epsilon)
-    outer_step = 0
-    while norm(grad) >= grad_tol:
-        t = t0
-        inner_step = 0
-        while not smooth_l1_backtrack_condition(
-            A, x, b, epsilon, t, -grad, alpha, grad
-        ):
-            t = beta * t
-            inner_step += 1
-        x = x - t * grad
-        grad = smooth_l1_gradient(A, x, b, epsilon)
-        display_backtracking_progress(
-            outer_step, inner_step, grad, A, x, b, epsilon
-        )
-        outer_step += 1
-    return x
-
-
-def min_smooth_l1_forward_backtracking(
-    A, b, epsilon=0.01, t0=1e-2, alpha=0.5, beta=0.5, grad_tol=1e-3,
-    random_init=False
+    random_init=False, forward_tracking=False
 ):
     n = A.shape[1]
     if random_init: x = np.random.normal(size=n)
@@ -182,6 +155,7 @@ def min_smooth_l1_forward_backtracking(
     t = t0
     while norm(grad) >= grad_tol:
         inner_step = 0
+        if not forward_tracking: t = t0
         if not smooth_l1_backtrack_condition(
             A, x, b, epsilon, t, -grad, alpha, grad
         ):
@@ -190,12 +164,12 @@ def min_smooth_l1_forward_backtracking(
             ):
                 t = beta * t
                 inner_step += 1
-        else:
+        elif forward_tracking:
             while smooth_l1_backtrack_condition(
                 A, x, b, epsilon, t, -grad, alpha, grad
             ):
                 t = t / beta
-                inner_step += 1
+                inner_step -= 1
             t = beta * t
             
         x = x - t * grad
@@ -207,26 +181,38 @@ def min_smooth_l1_forward_backtracking(
     return x
 
 def min_smooth_l1_newton(
-    A, b, epsilon=0.01, t0=1e-2, alpha=0.5, beta=0.5, grad_tol=1e-3,
-    random_init=False
+    A, b, epsilon=0.01, t0=1.0, alpha=0.5, beta=0.5, grad_tol=1e-3,
+    random_init=False, forward_tracking=False, diag_approx=False
 ):
     n = A.shape[1]
     if random_init: x = np.random.normal(size=n)
     else: x = np.zeros(shape=n)
     grad = smooth_l1_gradient(A, x, b, epsilon)
     outer_step = 0
+    t = t0
     while norm(grad) >= grad_tol:
         hess = smooth_l1_hessian(A, x, b, epsilon)
-        v = -solve(hess, grad, assume_a="pos", check_finite=False)
-        t = t0
+        if diag_approx: v = - grad / np.diag(hess)
+        else: v = -solve(hess, grad, assume_a="pos", check_finite=False)
         inner_step = 0
-        while not smooth_l1_backtrack_condition(
+        if not forward_tracking: t = t0
+        if not smooth_l1_backtrack_condition(
             A, x, b, epsilon, t, v, alpha, grad
         ):
+            while not smooth_l1_backtrack_condition(
+                A, x, b, epsilon, t, v, alpha, grad
+            ):
+                t = beta * t
+                inner_step += 1
+        elif forward_tracking:
+            while smooth_l1_backtrack_condition(
+                A, x, b, epsilon, t, v, alpha, grad
+            ):
+                t = t / beta
+                inner_step -= 1
             t = beta * t
-            inner_step += 1
+        
         x = x + t * v
-
         grad = smooth_l1_gradient(A, x, b, epsilon)
         display_backtracking_progress(
             outer_step, inner_step, grad, A, x, b, epsilon
@@ -235,7 +221,7 @@ def min_smooth_l1_newton(
     return x
 
 if __name__ == "__main__":
-    A, b = fileio.load_A_b(5)
+    A, b = fileio.load_A_b(3)
     # print(A.shape, b.shape)
     # x, _, _ = l1_min(A, b, method='interior-point')
     # x, _, _ = linf_min(A, b, method='interior-point')
@@ -247,8 +233,8 @@ if __name__ == "__main__":
     # )
     # analyse_methods()
     # min_smooth_l1_backtracking(A, b)
-    # min_smooth_l1_forward_backtracking(A, b)
+    min_smooth_l1_gradient_descent(A, b, forward_tracking=True)
     # min_smooth_l1_backtracking(A, b, beta=0.1)
     # min_smooth_l1_backtracking(A, b, t0=1e-3, alpha=0.9)
-    min_smooth_l1_newton(A, b, t0=1.0)
-    # min_smooth_l1_newton(A, b, random_init=True)
+    # min_smooth_l1_newton(A, b)
+    # min_smooth_l1_newton(A, b, forward_tracking=True, diag_approx=True)

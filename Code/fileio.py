@@ -20,10 +20,11 @@ def csv_to_npz(
         file: array_list[i] for i, file in enumerate(input_files)
     })
 
-def load_A_b(index=1, filename=DEFAULT_FILENAME):
+def load_A_b(index=1, filename=DEFAULT_FILENAME, verbose=False):
     with np.load(filename) as data:
         A = data["A" + str(index)]
         b = data["b" + str(index)]
+    if verbose: print("Finished loading data")
     return A, b
 
 def load_results(

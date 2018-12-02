@@ -175,6 +175,8 @@ def residual_histograms(
     plt.savefig(output_filename)
     plt.close()
 
+# THINGS GO DOWN-HILL FROM HERE
+
 def compare_smooth_to_exact_l1(problem_num=1):
     A, b = fileio.load_A_b(problem_num)
     _, smooth_value, smooth_time, nit = lo.min_smooth_l1_gradient_descent(
@@ -272,7 +274,7 @@ def plot_newton_vs_gradient_descent(
     plt.title("Performance against iteration")
     plt.legend([
         "Gradient descent ", "GD (forward-tracking)",
-        "Newton method", "Newton (FT)"
+        "Newton method", "Newton (FT)", "Newton (diagonal)"
     ])
     plt.grid(True)
     plt.savefig(i_filename)
@@ -296,6 +298,28 @@ def plot_newton_vs_gradient_descent(
     plt.savefig(t_filename)
     plt.close()
 
+def card_vs_gamma(
+    filename="Images/Cardinality vs gamma", gamma_lims=[-0.5, 0.5],
+    problem_num=5
+):
+    A, b = fileio.load_A_b(problem_num)
+    gamma_list = np.logspace(*gamma_lims)
+    card_list = np.zeros(gamma_list.size)
+    for i, g in enumerate(gamma_list):
+        _, _, card_list[i], _, _ = lo.min_smooth_card_gradient_descent(
+            A, b, gamma=g, forward_tracking=True,
+            verbose=False, very_verbose=False
+        )
+        print(g)
+    plt.figure(figsize=[8, 6])
+    plt.loglog(gamma_list, card_list)
+    plt.xlabel("gamma")
+    plt.ylabel("Cardinality")
+    plt.title("Cardinality against gamma")
+    plt.grid(True)
+    plt.savefig(filename)
+    plt.close()
+
 if __name__ == "__main__":
     # find_x_vals(problem_list=range(1, 3), save_results=False)
     # find_x_vals()
@@ -308,4 +332,5 @@ if __name__ == "__main__":
     # residual_histograms()
     compare_smooth_to_exact_l1(2)
     # plot_against_epsilon()
-    plot_newton_vs_gradient_descent()
+    # plot_newton_vs_gradient_descent()
+    card_vs_gamma()

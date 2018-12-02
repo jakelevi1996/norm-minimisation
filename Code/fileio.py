@@ -28,14 +28,14 @@ def load_A_b(index=1, filename=DEFAULT_FILENAME, verbose=False):
     if verbose: print("Finished loading data")
     return A, b
 
-def save_x_vals(
-    x_vals_list, filename="Results/x_vals.npz",
+def save_vals_list(
+    vals_list, filename="Results/results.npz",
     problem_names_list=DEFAULT_PROBLEM_NAMES_LIST
 ):
-    n = len(x_vals_list)
+    n = len(vals_list)
     assert len(problem_names_list) == n
     np.savez(filename, **{
-        problem_names_list[i]: x_vals_list[i] for i in range(n)
+        problem_names_list[i]: vals_list[i] for i in range(n)
     })
 
 

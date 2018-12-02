@@ -18,3 +18,5 @@ This repository is primarily for coursework submissions to 4M17: 'Practical opti
   - Attributes for storing the solution, time taken for different attempts, different norms of the solution/final values of the objective function, etc
   - Methods for saving, loading, and plotting these results, as well as printing them in tables
 - Rename repository `linear_optimisation`
+- Update `find_x_vals` and `find_t_vals` to accept list of problem names to pass to `save_vals_list`
+- Incorporate problem-names into `Result` class

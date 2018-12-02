@@ -5,12 +5,12 @@ import results, fileio, linopt as lo
 def display_time_taken(time_taken):
     if time_taken > 60:
         m, s = divmod(time_taken, 60)
-        print("All problems analysed in {}m {}s".format(m, s))
-    else: print("All problems analysed in {:.4g}s".format(time_taken))
+        print("All problems analysed in {}m {:.3}s".format(int(m), s))
+    else: print("All problems analysed in {:.4}s".format(time_taken))
 
 def find_x_vals(
     problem_list=range(1, 6), output_filename="Results/x_vals.npz",
-    verbose=True, very_verbose=True
+    save_results=True, verbose=True, very_verbose=True
 ):
     t_start = time()
     x_vals_list = []
@@ -27,9 +27,45 @@ def find_x_vals(
         )
         x_vals_list.append(x_vals)
     
+    time_taken = time() - t_start
+    if save_results: fileio.save_vals_list(x_vals_list, output_filename)
+    if verbose: display_time_taken(time_taken)
+
+def find_t_vals(
+    problem_list=range(1, 6), output_filename="Results/t_vals.npz",
+    max_n_simplex=256, num_attempts=3,
+    save_results=True, verbose=True, very_verbose=True
+):
+    t_start = time()
+    t_vals_list = []
+    for problem in problem_list:
+        A, b = fileio.load_A_b(problem)
+        n = A.shape[1]
+        t_vals = np.zeros([5, num_attempts])
+        for attempt in range(num_attempts):
+            _, t_vals[0, attempt], _ = lo.l1_min(
+                A, b, method='interior-point', verbose=very_verbose
+            )
+            if n <= max_n_simplex:
+                _, t_vals[1, attempt], _ = lo.l1_min(
+                    A, b, method='simplex', verbose=very_verbose
+                )
+            _, t_vals[2, attempt], _ = lo.l2_min(A, b, verbose=very_verbose)
+            _, t_vals[3, attempt], _ = lo.linf_min(
+                A, b, method='interior-point', verbose=very_verbose
+            )
+            if n <= max_n_simplex:
+                _, t_vals[4, attempt], _ = lo.linf_min(
+                    A, b, method='simplex', verbose=very_verbose
+                )
+        t_vals_list.append(t_vals)
     
     time_taken = time() - t_start
+    if save_results: fileio.save_vals_list(t_vals_list, output_filename)
     if verbose: display_time_taken(time_taken)
+
+
+
 
 def analyse_methods(
     problem_list=range(1, 6), num_attempts=3, max_simplex_n=256,
@@ -88,3 +124,9 @@ def analyse_methods(
         m, s = divmod(time_taken, 60)
         print("All problems analysed in {}m {}s".format(m, s))
     else: print("All problems analysed in {:.4g}s".format(time_taken))
+
+if __name__ == "__main__":
+    find_x_vals(problem_list=range(1, 3), save_results=False)
+    # find_x_vals()
+    # find_t_vals(problem_list=range(1, 3), save_results=False)
+    find_t_vals()

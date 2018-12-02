@@ -6,11 +6,11 @@ from time import time
 
 import fileio, results
 
-def ax_take_b(a, x, b): return A.dot(x) - b
+def ax_take_b(a, x, b): return a.dot(x) - b
 
-def display_lp_min_results(solution_norm, time_taken):
-    print("Minimised norm = {:.6}\tTime taken = {:.4} s".format(
-        solution_norm, time_taken
+def display_lp_min_results(n, p, solution_norm, time_taken):
+    print("n={}\tMinimised {}-norm\t= {:.6}\tTime taken = {:.4} s".format(
+        n, p, solution_norm, time_taken
     ))
 
 def l1_min(A, b, method='interior-point', verbose=True):
@@ -29,7 +29,7 @@ def l1_min(A, b, method='interior-point', verbose=True):
     assert res.status == 0
     x = res.x[:n]
     solution_norm = norm(ax_take_b(A, x, b), 1)
-    if verbose: display_lp_min_results(solution_norm, time_taken)
+    if verbose: display_lp_min_results(n, 1, solution_norm, time_taken)
 
     return x, solution_norm, time_taken
 
@@ -49,7 +49,7 @@ def linf_min(A, b, method='interior-point', verbose=True):
     assert res.status == 0
     x = res.x[:n]
     solution_norm = norm(ax_take_b(A, x, b), np.inf)
-    if verbose: display_lp_min_results(solution_norm, time_taken)
+    if verbose: display_lp_min_results(n, np.inf, solution_norm, time_taken)
 
     return x, solution_norm, time_taken
 
@@ -58,8 +58,9 @@ def l2_min(A, b, verbose=True):
     t_start = time()
     x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
     time_taken = time() - t_start
+    n = x.size
     solution_norm = norm(ax_take_b(A, x, b), 2)
-    if verbose: display_lp_min_results(solution_norm, time_taken)
+    if verbose: display_lp_min_results(n, 2, solution_norm, time_taken)
     
     return x, solution_norm, time_taken
 

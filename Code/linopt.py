@@ -20,18 +20,18 @@ def l1_min(A, b, method='interior-point', verbose=True):
     A_ub = np.block([[A, -I], [-A, -I]])
     b_ub = np.block([b, -b])
     c = np.block([np.zeros(n), np.ones(m)])
-    start_time = time()
+    t_start = time()
     res = linprog(
         c, A_ub, b_ub, bounds=(None, None),
         options={"maxiter": np.inf, "tol": 1e-7}, method=method
     )
-    time_taken = time() - start_time
+    time_taken = time() - t_start
     assert res.status == 0
     x = res.x[:n]
     solution_norm = norm(ax_take_b(A, x, b), 1)
     if verbose: display_lp_min_results(solution_norm, time_taken)
 
-    return x, solution_norm, time_taken, res.status
+    return x, solution_norm, time_taken
 
 def linf_min(A, b, method='interior-point', verbose=True):
     assert A.ndim == 2 and b.ndim == 1
@@ -40,24 +40,24 @@ def linf_min(A, b, method='interior-point', verbose=True):
     A_ub = np.block([[A, -ones], [-A, -ones]])
     b_ub = np.block([b, -b])
     c = np.block([np.zeros(n), 1])
-    start_time = time()
+    t_start = time()
     res = linprog(
         c, A_ub, b_ub, bounds=(None, None),
         options={"maxiter": np.inf, "tol": 1e-7}, method=method
     )
-    time_taken = time() - start_time
+    time_taken = time() - t_start
     assert res.status == 0
     x = res.x[:n]
     solution_norm = norm(ax_take_b(A, x, b), np.inf)
     if verbose: display_lp_min_results(solution_norm, time_taken)
 
-    return x, solution_norm, time_taken, res.success
+    return x, solution_norm, time_taken
 
 def l2_min(A, b, verbose=True):
     assert A.ndim == 2 and b.ndim == 1
-    start_time = time()
+    t_start = time()
     x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
-    time_taken = time() - start_time
+    time_taken = time() - t_start
     solution_norm = norm(ax_take_b(A, x, b), 2)
     if verbose: display_lp_min_results(solution_norm, time_taken)
     
@@ -254,7 +254,7 @@ if __name__ == "__main__":
     for i in range(1, 5):
         A, b = fileio.load_A_b(i)
         # x, _, _ = l1_min(A, b, method='interior-point')
-        x, solution_norm, t, _ = linf_min(A, b, method='interior-point')
+        x, solution_norm, t = linf_min(A, b, method='interior-point')
         # x, _, _ = l2_min(A, b)
     # analyse_methods(
     #     problem_list=[1, 2, 3], max_simplex_n=0, filename_prefix='test'

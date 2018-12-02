@@ -2,6 +2,35 @@ import numpy as np
 from time import time
 import results, fileio, linopt as lo
 
+def display_time_taken(time_taken):
+    if time_taken > 60:
+        m, s = divmod(time_taken, 60)
+        print("All problems analysed in {}m {}s".format(m, s))
+    else: print("All problems analysed in {:.4g}s".format(time_taken))
+
+def find_x_vals(
+    problem_list=range(1, 6), output_filename="Results/x_vals.npz",
+    verbose=True, very_verbose=True
+):
+    t_start = time()
+    x_vals_list = []
+    for problem in problem_list:
+        A, b = fileio.load_A_b(problem)
+        n = A.shape[1]
+        x_vals = np.empty([3, n])
+        x_vals[0], _, _ = lo.l1_min(
+            A, b, method='interior-point', verbose=very_verbose
+        )
+        x_vals[1], _, _ = lo.l2_min(A, b, verbose=very_verbose)
+        x_vals[2], _, _ = lo.linf_min(
+            A, b, method='interior-point', verbose=very_verbose
+        )
+        x_vals_list.append(x_vals)
+    
+    
+    time_taken = time() - t_start
+    if verbose: display_time_taken(time_taken)
+
 def analyse_methods(
     problem_list=range(1, 6), num_attempts=3, max_simplex_n=256,
     folder=results.DEFAULT_FOLDER, filename_prefix="results_problem_"
@@ -25,7 +54,7 @@ def analyse_methods(
      - [Simplex and the l1 norm]
      - [Simplex and the linfinity norm]
     """
-    start_time = time()
+    t_start = time()
     for problem in problem_list:
         A, b = fileio.load_A_b(problem)
         n = A.shape[1]
@@ -54,7 +83,7 @@ def analyse_methods(
             folder + filename_prefix + str(problem),
             x_vals=x_vals, t_vals=t_vals
         )
-    time_taken = time() - start_time
+    time_taken = time() - t_start
     if time_taken > 60:
         m, s = divmod(time_taken, 60)
         print("All problems analysed in {}m {}s".format(m, s))

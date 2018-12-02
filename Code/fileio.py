@@ -6,6 +6,7 @@ DEFAULT_FILENAME = DEFAULT_FOLDER + "matrices.npz"
 a_list = ["A" + str(i) for i in range(1, 6)]
 b_list = ["b" + str(i) for i in range(1, 6)]
 DEFAULT_FILES_LIST = a_list + b_list
+DEFAULT_PROBLEM_NAMES_LIST = ["p" + str(i) for i in range(1, 6)]
 
 def csv_to_npz(
     input_folder=DEFAULT_FOLDER,
@@ -26,6 +27,17 @@ def load_A_b(index=1, filename=DEFAULT_FILENAME, verbose=False):
         b = data["b" + str(index)]
     if verbose: print("Finished loading data")
     return A, b
+
+def save_x_vals(
+    x_vals_list, filename="Results/x_vals.npz",
+    problem_names_list=DEFAULT_PROBLEM_NAMES_LIST
+):
+    n = len(x_vals_list)
+    assert len(problem_names_list) == n
+    np.savez(filename, **{
+        problem_names_list[i]: x_vals_list[i] for i in range(n)
+    })
+
 
 def load_results(
     index=1, filename_prefix="Results/Protected/results_problem_"

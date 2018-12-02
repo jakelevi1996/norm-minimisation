@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
-import results, fileio, linopt as lo
+import fileio, linopt as lo
 
 def display_time_taken(time_taken):
     if time_taken > 60:
@@ -19,11 +19,11 @@ def find_x_vals(
         A, b = fileio.load_A_b(problem)
         n = A.shape[1]
         x_vals = np.empty([3, n])
-        x_vals[0], _, _ = lo.l1_min(
+        x_vals[0], _, _, _ = lo.l1_min(
             A, b, method='interior-point', verbose=very_verbose
         )
         x_vals[1], _, _ = lo.l2_min(A, b, verbose=very_verbose)
-        x_vals[2], _, _ = lo.linf_min(
+        x_vals[2], _, _, _ = lo.linf_min(
             A, b, method='interior-point', verbose=very_verbose
         )
         x_vals_list.append(x_vals)
@@ -44,19 +44,19 @@ def find_t_vals(
         n = A.shape[1]
         t_vals = np.zeros([5, num_attempts])
         for attempt in range(num_attempts):
-            _, _, t_vals[0, attempt] = lo.l1_min(
+            _, _, t_vals[0, attempt], _ = lo.l1_min(
                 A, b, method='interior-point', verbose=very_verbose
             )
             if n <= max_n_simplex:
-                _, _, t_vals[1, attempt] = lo.l1_min(
+                _, _, t_vals[1, attempt], _ = lo.l1_min(
                     A, b, method='simplex', verbose=very_verbose
                 )
             _, _, t_vals[2, attempt] = lo.l2_min(A, b, verbose=very_verbose)
-            _, _, t_vals[3, attempt] = lo.linf_min(
+            _, _, t_vals[3, attempt], _ = lo.linf_min(
                 A, b, method='interior-point', verbose=very_verbose
             )
             if n <= max_n_simplex:
-                _, _, t_vals[4, attempt] = lo.linf_min(
+                _, _, t_vals[4, attempt], _ = lo.linf_min(
                     A, b, method='simplex', verbose=very_verbose
                 )
         t_vals_list.append(t_vals)
@@ -175,15 +175,137 @@ def residual_histograms(
     plt.savefig(output_filename)
     plt.close()
 
+def compare_smooth_to_exact_l1(problem_num=1):
+    A, b = fileio.load_A_b(problem_num)
+    _, smooth_value, smooth_time, nit = lo.min_smooth_l1_gradient_descent(
+        A, b, forward_tracking=False, verbose=False
+    )
+    print("Smooth f value = {:.4} after {} iters in {:.4} s, ".format(
+        smooth_value, nit, smooth_time
+    ))
+    _, smooth_value, smooth_time, nit = lo.min_smooth_l1_gradient_descent(
+        A, b, forward_tracking=True, verbose=False
+    )
+    print("Forward smooth f value = {:.4} after {} iters in {:.4} s, ".format(
+        smooth_value, nit, smooth_time
+    ))
+    _, lp_value, lp_time, nit = lo.l1_min(A, b, verbose=False)
+    print("LP objective = {:.4} after {} iters in {:.4} s".format(
+        lp_value, nit, lp_time
+    ))
+    _, smooth_value, smooth_time, nit = lo.min_smooth_l1_newton(
+        A, b, forward_tracking=True, verbose=False
+    )
+    print("Smooth f value = {:.4} after {} Newton iters in {:.4} s, ".format(
+        smooth_value, nit, smooth_time
+    ))
+
+def plot_against_epsilon(
+    f_filename="Images/f against epsilon",
+    t_filename="Images/t against epsilon", eps_lims=[-3, -1], problem_num=1
+):
+    A, b = fileio.load_A_b(problem_num)
+    epsilon_list = np.logspace(*eps_lims)
+    t_back_list = np.zeros(epsilon_list.size)
+    t_forwards_list = np.zeros(epsilon_list.size)
+    f_list = np.zeros(epsilon_list.size)
+
+    for i, eps in enumerate(epsilon_list):
+        print("epsilon = {:.4}".format(eps))
+        _, f_list[i], t_back_list[i], _ = lo.min_smooth_l1_gradient_descent(
+            A, b, epsilon=eps, forward_tracking=False, verbose=False
+        )
+        _, _, t_forwards_list[i], _ = lo.min_smooth_l1_gradient_descent(
+            A, b, epsilon=eps, forward_tracking=True, verbose=False
+        )
+    plt.figure(figsize=[8, 6])
+    plt.semilogx(epsilon_list, f_list)
+    plt.xlabel("Epsilon")
+    plt.ylabel("Final objective function value")
+    plt.title("Final performance against epsilon for fixed gradient tolerance")
+    plt.grid(True)
+    plt.savefig(f_filename)
+    plt.close()
+
+    plt.figure(figsize=[8, 6])
+    plt.loglog(epsilon_list, t_back_list, epsilon_list, t_forwards_list)
+    plt.xlabel("Epsilon")
+    plt.ylabel("Time taken for convergence (s)")
+    plt.title("Computation time against epsilon for fixed gradient tolerance")
+    plt.legend([
+        "Backtracking line-search", "Backtracking with forward-tracking"
+    ])
+    plt.grid(True)
+    plt.savefig(t_filename)
+    plt.close()
+
+def plot_newton_vs_gradient_descent(
+    i_filename="Images/f against i",
+    t_filename="Images/f against t", problem_num=2
+):
+    A, b = fileio.load_A_b(problem_num)
+
+    f_list_gd, t_list_gd, i_list_gd = lo.fixed_its_gd(
+        A, b, nits=1650, verbose=False
+    )
+    f_list_n, t_list_n, i_list_n = lo.fixed_its_newton(
+        A, b, nits=23, verbose=False
+    )
+    f_list_gdf, t_list_gdf, i_list_gdf = lo.fixed_its_gd(
+        A, b, nits=1650, forward_tracking=True, verbose=False
+    )
+    f_list_nf, t_list_nf, i_list_nf = lo.fixed_its_newton(
+        A, b, nits=23, forward_tracking=True, verbose=False
+    )
+    f_list_nd, t_list_nd, i_list_nd = lo.fixed_its_newton(
+        A, b, nits=1650, diag_approx=True, verbose=False
+    )
+
+    plt.figure(figsize=[8, 6])
+    plt.semilogx(
+        i_list_gd, f_list_gd, "b-", i_list_gdf, f_list_gdf, "b:",
+        i_list_n, f_list_n, "g-", i_list_nf, f_list_nf, "g:",
+        i_list_nd, f_list_nd, "g--"
+    )
+    plt.xlabel("Iteration")
+    plt.ylabel("Objective function value")
+    plt.title("Performance against iteration")
+    plt.legend([
+        "Gradient descent ", "GD (forward-tracking)",
+        "Newton method", "Newton (FT)"
+    ])
+    plt.grid(True)
+    plt.savefig(i_filename)
+    plt.close()
+
+    plt.figure(figsize=[8, 6])
+    plt.semilogx(
+        t_list_gd, f_list_gd, "b-", t_list_gdf, f_list_gdf, "b:",
+        t_list_n, f_list_n, "g-", t_list_nf, f_list_nf, "g:",
+        t_list_nd, f_list_nd, "g--"
+    )
+    plt.xlim(left=1e-3)
+    plt.xlabel("Time (s)")
+    plt.ylabel("Objective function value")
+    plt.title("Performance against time")
+    plt.legend([
+        "Gradient descent ", "GD (forward-tracking)",
+        "Newton method", "Newton (FT)", "Newton (diagonal)"
+    ])
+    plt.grid(True)
+    plt.savefig(t_filename)
+    plt.close()
 
 if __name__ == "__main__":
     # find_x_vals(problem_list=range(1, 3), save_results=False)
     # find_x_vals()
     # find_t_vals(problem_list=range(1, 2), save_results=True, num_attempts=1)
     # find_t_vals()
-    print_residuals_tables()
-    [print_residuals_tables(p=p) for p in [1, 2, np.inf]]
-
-    print_t_tables()
-    plot_t_tables()
-    residual_histograms()
+    # print_t_tables()
+    # print_residuals_tables()
+    # [print_residuals_tables(p=p) for p in [1, 2, np.inf]]
+    # plot_t_tables()
+    # residual_histograms()
+    compare_smooth_to_exact_l1(2)
+    # plot_against_epsilon()
+    plot_newton_vs_gradient_descent()

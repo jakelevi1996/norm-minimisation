@@ -8,6 +8,8 @@ import fileio, results
 
 def ax_take_b(a, x, b): return a.dot(x) - b
 
+def residual(A, x, b, p): return norm(ax_take_b(A, x, b), p)
+
 def display_lp_min_results(n, p, solution_norm, time_taken):
     print("n={}\tMinimised {}-norm\t= {:.6}\tTime taken = {:.4} s".format(
         n, p, solution_norm, time_taken
@@ -28,7 +30,7 @@ def l1_min(A, b, method='interior-point', verbose=True):
     time_taken = time() - t_start
     assert res.status == 0
     x = res.x[:n]
-    solution_norm = norm(ax_take_b(A, x, b), 1)
+    solution_norm = residual(A, x, b, 1)
     if verbose: display_lp_min_results(n, 1, solution_norm, time_taken)
 
     return x, solution_norm, time_taken
@@ -48,7 +50,7 @@ def linf_min(A, b, method='interior-point', verbose=True):
     time_taken = time() - t_start
     assert res.status == 0
     x = res.x[:n]
-    solution_norm = norm(ax_take_b(A, x, b), np.inf)
+    solution_norm = residual(A, x, b, np.inf)
     if verbose: display_lp_min_results(n, np.inf, solution_norm, time_taken)
 
     return x, solution_norm, time_taken
@@ -59,7 +61,7 @@ def l2_min(A, b, verbose=True):
     x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
     time_taken = time() - t_start
     n = x.size
-    solution_norm = norm(ax_take_b(A, x, b), 2)
+    solution_norm = residual(A, x, b, 2)
     if verbose: display_lp_min_results(n, 2, solution_norm, time_taken)
     
     return x, solution_norm, time_taken
@@ -174,8 +176,7 @@ def min_smooth_l1_newton(
     return x
 
 def smooth_card(A, x, b, epsilon, gamma):
-    Axb = ax_take_b(A, x, b)
-    return norm(Axb, 2) + gamma * np.sqrt(x**2 + epsilon**2).sum()
+    return residual(A, x, b, 2) + gamma * np.sqrt(x**2 + epsilon**2).sum()
 
 def smooth_card_grad(A, x, b, epsilon, gamma):
     Axb = ax_take_b(A, x, b)

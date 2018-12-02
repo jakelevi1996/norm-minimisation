@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-from numpy import load, inf
+import numpy as np
+from numpy import inf
 from numpy.linalg import norm
 import fileio
 
@@ -7,19 +8,36 @@ DEFAULT_FOLDER = "Results/"
 DEFAULT_FILE_PREFIX = DEFAULT_FOLDER + "/Protected/results_problem_"
 
 def histogram_norms(
-    input_filename="Results/Protected/results_problem_5.npz",
-    output_filename_prefix="Results/Q5_histogram_"
+    problem_num=5,
+    output_filename="Images/Q5 x histograms",
+    # input_filename="Results/Protected/results_problem_5.npz",
+    # output_filename_prefix="Images/Q5_histogram_"
 ):
-    A, b = fileio.load_A_b(5)
+    A, b = fileio.load_A_b(problem_num)
 
-    # TODO: put this in fileio.py:
-    with load(input_filename) as data:
-        x_vals = data["x_vals"]
-    # TODO: add labels, titles and subplots
+    x_vals, _, _ = fileio.load_results(problem_num)
+    xmin, xmax = min(
+        min(A.dot(x_vals[0]) - b),
+        min(A.dot(x_vals[1]) - b),
+        min(A.dot(x_vals[2]) - b)
+    ), max(
+        max(A.dot(x_vals[0]) - b),
+        max(A.dot(x_vals[1]) - b),
+        max(A.dot(x_vals[2]) - b)
+    )
+    _, step = np.linspace(xmin, xmax, retstep=True)
+    bins = np.linspace(xmin - step/3, xmax + step/3)
     plt.figure(figsize=[8, 6])
-    plt.hist(A.dot(x_vals[0]) - b, 20)
+    plt.hist(A.dot(x_vals[1]) - b, bins, alpha=0.6)
+    plt.hist(A.dot(x_vals[0]) - b, bins + step/3, alpha=0.6)
+    plt.hist(A.dot(x_vals[2]) - b, bins - step/3, alpha=0.6)
+    plt.xlim(-2, 2)
     plt.grid(True)
-    plt.savefig(output_filename_prefix + "l2")
+    plt.legend(["l_1", "l_2", "l_inf"])
+    plt.xlabel("Residual component value")
+    plt.ylabel("Frequency")
+    plt.title("Histogram of the norm-approximation residuals for A5, b5")
+    plt.savefig(output_filename)
     plt.close()
 
 def plot_times(problem_list=range(1, 6), output_filename="Results/times"):
@@ -37,82 +55,9 @@ def plot_times(problem_list=range(1, 6), output_filename="Results/times"):
     )
     plt.savefig(output_filename)
 
-def eval_tables(problem_list=range(1, 6)):
-    # Load A and b matrices for each problem
-    ab_list = [fileio.load_A_b(problem) for problem in problem_list]
-    # Load results for each problem
-    results_list = [fileio.load_results(problem) for problem in problem_list]
-    
-    norm_headers = ["n", "l1", "l2", "linf"]
-    solution_norms = []
-    l1_solution_norms = []
-    l2_solution_norms = []
-    linf_solution_norms = []
-    time_headers = [
-        "n", "l1 (IP)", "l1 (simplex)", "l2 (LS)",
-        "linf (IP)", "linf (simplex)"
-    ]
-    time_table_vals = []
-
-    for (A, b), (x_vals, t_vals, n) in zip(ab_list, results_list):
-        solution_norms.append([
-            n, norm(A.dot(x_vals[1]) - b, 1),
-            norm(A.dot(x_vals[0]) - b, 2), norm(A.dot(x_vals[2]) - b, inf),
-        ])
-        l1_solution_norms.append([
-            n, norm(A.dot(x_vals[1]) - b, 1),
-            norm(A.dot(x_vals[1]) - b, 2), norm(A.dot(x_vals[1]) - b, inf),
-        ])
-        l2_solution_norms.append([
-            n, norm(A.dot(x_vals[0]) - b, 1),
-            norm(A.dot(x_vals[0]) - b, 2), norm(A.dot(x_vals[0]) - b, inf),
-        ])
-        linf_solution_norms.append([
-            n, norm(A.dot(x_vals[2]) - b, 1),
-            norm(A.dot(x_vals[2]) - b, 2), norm(A.dot(x_vals[2]) - b, inf),
-        ])
-        mean_times = t_vals.mean(axis=1)
-        if mean_times.size == 5:
-            time_table_vals.append([
-                n, mean_times[1], mean_times[3],
-                mean_times[0], mean_times[2], mean_times[4],
-            ])
-        else:
-            time_table_vals.append([
-                n, mean_times[1],  mean_times[0], mean_times[2]
-            ])
-            
-
-    return (
-        norm_headers, solution_norms, l1_solution_norms, l2_solution_norms,
-        linf_solution_norms, time_headers, time_table_vals
-    )
-
-def print_norm_table(headers, values):
-    print("{:<6}{:<8}{:<8}{:<8}".format(*headers))
-    for row in values:
-        print("{:<6}{:<8.4}{:<8.4}{:<8.4}".format(*row))
-
-def print_time_table(headers, values):
-    print("{:<6}{:<12}{:<12}{:<12}{:<12}{:<12}".format(*headers))
-    for row in values:
-        if len(row) == 6:
-            print("{:<6}{:<12.4}{:<12.4}{:<12.4}{:<12.4}{:<12.4}".format(*row))
-        else:
-            print("{0:<6}{1:<12.4}{4:<12}{2:<12.4}{3:<12.4}{4:<12}".format(
-                *row, "-"
-            ))
-
 if __name__ == "__main__":
-    headers, solution_norms = eval_tables()[:2]
-    print("Solution norms:")
-    print_norm_table(headers, solution_norms)
-    headers, times = eval_tables()[-2:]
-    print("Times taken:")
-    print_time_table(headers, times)
-    print("n:")
-    plot_times()
-    # histogram_norms()
+    # plot_times()
+    histogram_norms()
 
 
 

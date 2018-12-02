@@ -32,12 +32,20 @@ def save_vals_list(
     vals_list, filename="Results/results.npz",
     problem_names_list=DEFAULT_PROBLEM_NAMES_LIST
 ):
-    n = len(vals_list)
-    assert len(problem_names_list) == n
+    n = len(problem_names_list)
+    assert len(vals_list) == n
     np.savez(filename, **{
         problem_names_list[i]: vals_list[i] for i in range(n)
     })
 
+def load_vals_list(
+    filename="Results/results.npz",
+    problem_names_list=DEFAULT_PROBLEM_NAMES_LIST
+):
+    with np.load(filename) as data:
+        vals_list = [data[p] for p in problem_names_list]
+
+    return vals_list
 
 def load_results(
     index=1, filename_prefix="Results/Protected/results_problem_"

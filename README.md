@@ -1,7 +1,7 @@
 
 # practical-optimisation
 
-This repository is primarily for coursework submissions to 4M17: 'Practical optimisation'
+*Coming soon.*
 
 ## File structure description
 
@@ -20,3 +20,4 @@ This repository is primarily for coursework submissions to 4M17: 'Practical opti
 - Rename repository `linear_optimisation`
 - Update `find_x_vals` and `find_t_vals` to accept list of problem names to pass to `save_vals_list`
 - Incorporate problem-names into `Result` class
+- Get `problem_lists` working consistently across all functions

@@ -261,7 +261,6 @@ if __name__ == "__main__":
     # analyse_methods(
     #     problem_list=[1, 2, 3], max_simplex_n=0, filename_prefix='test'
     # )
-    # analyse_methods()
     # min_smooth_l1_backtracking(A, b)
     # min_smooth_l1_gradient_descent(A, b, epsilon=1e-1, forward_tracking=True)
     # min_smooth_l1_backtracking(A, b, beta=0.1)

@@ -112,9 +112,10 @@ def print_t_tables(
         t_means = t_vals.mean(axis=1)
         print(("{:<6}" + 5*"{:<13.4}").format(n, *t_means))
 
-def plot_t_tables(
+def plot_t_graphs(
     t_vals_list=None, t_vals_filename="Results/Protected/t_vals.npz",
-    problem_list=range(1, 6), output_filename="Images/Norm minimisation times"
+    problem_list=range(1, 6), output_filename="Images/Norm minimisation times",
+    t_res=1.2e-3
 ):
     # TODO: evaluate n_list from problem_list
     n_list=np.array([16, 64, 256, 512, 1024])
@@ -131,7 +132,7 @@ def plot_t_tables(
             t = np.array(
                 [t_vals_list[n][p, attempt] for n in range(n_problems)]
             )
-            plt.loglog(n_list[t > 1.2e-3], t[t > 1.2e-3], fmt, alpha=0.3)
+            plt.loglog(n_list[t > t_res], t[t > t_res], fmt, alpha=0.3)
     plt.xlabel("n")
     plt.ylabel("Computation time (s)")
     title = "Computation time against problem size "
@@ -177,30 +178,132 @@ def residual_histograms(
 
 # THINGS GO DOWN-HILL FROM HERE
 
+def print_l1_perf(solution_strategy, final_value, nit, t):
+    print(
+        "Residual = {:.5} using {:<10} after {:<4} iters in {:.4} s".format(
+            final_value, solution_strategy, nit, t
+        )
+    )
+
 def compare_smooth_to_exact_l1(problem_num=1):
     A, b = fileio.load_A_b(problem_num)
+    # Smooth gradient descent
     _, smooth_value, smooth_time, nit = lo.min_smooth_l1_gradient_descent(
         A, b, forward_tracking=False, verbose=False
     )
-    print("Smooth f value = {:.4} after {} iters in {:.4} s, ".format(
-        smooth_value, nit, smooth_time
-    ))
+    print_l1_perf("Smooth GD", smooth_value, nit, smooth_time)
+    # Smooth gradient descent with forward tracking
     _, smooth_value, smooth_time, nit = lo.min_smooth_l1_gradient_descent(
         A, b, forward_tracking=True, verbose=False
     )
-    print("Forward smooth f value = {:.4} after {} iters in {:.4} s, ".format(
-        smooth_value, nit, smooth_time
-    ))
+    print_l1_perf("SmGD (fwd)", smooth_value, nit, smooth_time)
+    # Solving exact linear program using IP
     _, lp_value, lp_time, nit = lo.l1_min(A, b, verbose=False)
-    print("LP objective = {:.4} after {} iters in {:.4} s".format(
-        lp_value, nit, lp_time
-    ))
+    print_l1_perf("LP (IP)", lp_value, nit, lp_time)
+    # Solving exact linear program using simplex
+    _, lp_value, lp_time, nit = lo.l1_min(
+        A, b, method="simplex", verbose=False
+    )
+    print_l1_perf("LP (simplex)", lp_value, nit, lp_time)
+    # Newton method
     _, smooth_value, smooth_time, nit = lo.min_smooth_l1_newton(
         A, b, forward_tracking=True, verbose=False
     )
-    print("Smooth f value = {:.4} after {} Newton iters in {:.4} s, ".format(
-        smooth_value, nit, smooth_time
-    ))
+    print_l1_perf("Newton", smooth_value, nit, smooth_time)
+
+def print_l1_perf_brief(solution_strategy, time):
+    print("Finished {:<10} in {:.4} s".format(solution_strategy, time))
+
+def find_t_vals_l1(
+    problem_list=range(1, 6), output_filename="Results/t_vals_l1.npz",
+    max_n=[256, 256, 512, 64, 1024, 1024], num_attempts=3,
+    save_results=True, verbose=True, very_verbose=True
+):
+    t_start = time()
+    t_vals_list = []
+    for problem in problem_list:
+        A, b = fileio.load_A_b(problem)
+        n = A.shape[1]
+        t_vals = np.zeros([6, num_attempts])
+        for a in range(num_attempts):
+            print("\n***Problem {}, attempt {}/{}...".format(
+                problem, a+1, num_attempts
+            ))
+            # Smooth gradient descent
+            if n <= max_n[0]:
+                _, _, t_vals[0, a], _ = lo.min_smooth_l1_gradient_descent(
+                    A, b, forward_tracking=False, verbose=False
+                )
+                print_l1_perf_brief("Smooth GD", t_vals[0, a])
+            # Smooth gradient descent with forward tracking
+            if n <= max_n[1]:
+                _, _, t_vals[1, a], _ = lo.min_smooth_l1_gradient_descent(
+                    A, b, forward_tracking=True, verbose=False
+                )
+                print_l1_perf_brief("SmGD fwd", t_vals[1, a])
+            # Solving exact linear program using IP
+            if n <= max_n[2]:
+                _, _, t_vals[2, a], _ = lo.l1_min(A, b, verbose=False)
+                print_l1_perf_brief("LP (IP)", t_vals[2, a])
+            # Solving exact linear program using simplex
+            if n <= max_n[3]:
+                _, _, t_vals[3, a], _ = lo.l1_min(
+                    A, b, method="simplex", verbose=False
+                )
+                print_l1_perf_brief("Simplex)", t_vals[3, a])
+            # Newton method
+            if n <= max_n[4]:
+                _, _, t_vals[4, a], _ = lo.min_smooth_l1_newton(
+                    A, b, forward_tracking=False, verbose=False
+                )
+                print_l1_perf_brief("Newton", t_vals[4, a])
+            # Newton forward-tracking
+            if n <= max_n[5]:
+                _, _, t_vals[5, a], _ = lo.min_smooth_l1_newton(
+                    A, b, forward_tracking=True, verbose=False
+                )
+                print_l1_perf_brief("Newt (fwd)", t_vals[5, a])
+        t_vals_list.append(t_vals)
+    
+    time_taken = time() - t_start
+    if save_results: fileio.save_vals_list(t_vals_list, output_filename)
+    if verbose: display_time_taken(time_taken)
+
+def plot_t_graphs_l1(
+    t_vals_list=None, t_vals_filename="Results/Protected/t_vals_l1.npz",
+    problem_list=range(1, 6), output_filename="Images/L1 minimisation times",
+    t_res=1.2e-3
+):
+    # TODO: evaluate n_list from problem_list
+    n_list=np.array([16, 64, 256, 512, 1024])
+    n_problems = len(problem_list)
+    if t_vals_list is None:
+        t_vals_list = fileio.load_vals_list(t_vals_filename)
+    assert len(t_vals_list) == n_problems
+    n_attempts = t_vals_list[0].shape[1]
+    fmt_list = ["ro-", "ro:", "bo-", "bo:", "go-", "go--"]
+
+    plt.figure(figsize=[8, 6])
+    for attempt in range(n_attempts):
+        for p, fmt in enumerate(fmt_list):
+            t = np.array(
+                [t_vals_list[n][p, attempt] for n in range(n_problems)]
+            )
+            plt.loglog(n_list[t > t_res], t[t > t_res], fmt, alpha=0.3)
+    plt.xlabel("n")
+    plt.ylabel("Computation time (s)")
+    title = "Computation time against problem size "
+    title += "for different methods of L1 norm-minimisation"
+    plt.title(title)
+    plt.legend([
+        "Smooth gradient-descent", "Smooth GD (forward-tracking)",
+        "LP (interior point)", "LP (simplex)", "Newton method",
+        "Newton (forward-tracking)"
+    ])
+    plt.grid(True)
+    plt.savefig(output_filename)
+    plt.close()
+
 
 def plot_against_epsilon(
     f_filename="Images/f against epsilon",
@@ -246,7 +349,16 @@ def plot_newton_vs_gradient_descent(
     t_filename="Images/f against t", problem_num=2
 ):
     A, b = fileio.load_A_b(problem_num)
+    # f_list_gd, t_list_gd, i_list_gd = [], [], []
+    # f_list_n, t_list_n, i_list_n = [], [], []
+    # f_list_gdf, t_list_gdf, i_list_gdf = [], [], []
+    # f_list_nf, t_list_nf, i_list_nf = [], [], []
+    # f_list_nd, t_list_nd, i_list_nd = [], [], []
+    # f_list = [[[] for _ in range(3)] for _ in range(5)]
+    # t_list = [[[] for _ in range(3)] for _ in range(5)]
+    # i_list = [[[] for _ in range(3)] for _ in range(5)]
 
+    
     f_list_gd, t_list_gd, i_list_gd = lo.fixed_its_gd(
         A, b, nits=1650, verbose=False
     )
@@ -325,12 +437,14 @@ if __name__ == "__main__":
     # find_x_vals()
     # find_t_vals(problem_list=range(1, 2), save_results=True, num_attempts=1)
     # find_t_vals()
-    # print_t_tables()
+    print_t_tables()
     # print_residuals_tables()
     # [print_residuals_tables(p=p) for p in [1, 2, np.inf]]
-    # plot_t_tables()
+    # plot_t_graphs()
     # residual_histograms()
-    compare_smooth_to_exact_l1(2)
+    # compare_smooth_to_exact_l1(2)
+    # find_t_vals_l1()
+    # plot_t_graphs_l1()
     # plot_against_epsilon()
-    # plot_newton_vs_gradient_descent()
-    card_vs_gamma()
+    plot_newton_vs_gradient_descent()
+    # card_vs_gamma()

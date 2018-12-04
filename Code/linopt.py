@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.optimize import linprog
 from scipy.linalg import solve
-from time import time
+from time import time, perf_counter
 
 import fileio
 
@@ -265,7 +265,8 @@ def fixed_its_gd(
     n = A.shape[1]
     outer_step = 0
     t = t0
-    t_start = time()
+    # t_start = time()
+    t_start = perf_counter()
     if random_init: x = np.random.normal(size=n)
     else: x = np.zeros(shape=n)
     f_list = np.empty(nits)
@@ -298,7 +299,8 @@ def fixed_its_gd(
             outer_step, inner_step, grad, A, x, b, epsilon
         )
         f_list[i] = smooth_l1(A, x, b, epsilon)
-        t_list[i] = time() - t_start
+        # t_list[i] = time() - t_start
+        t_list[i] = perf_counter() - t_start
         i_list[i] = i+1
         outer_step += 1
     return f_list, t_list, i_list
@@ -310,7 +312,8 @@ def fixed_its_newton(
     n = A.shape[1]
     outer_step = 0
     t = t0
-    t_start = time()
+    # t_start = time()
+    t_start = perf_counter()
     if random_init: x = np.random.normal(size=n)
     else: x = np.zeros(shape=n)
     f_list = np.empty(nits)
@@ -346,7 +349,8 @@ def fixed_its_newton(
             outer_step, inner_step, grad, A, x, b, epsilon
         )
         f_list[i] = smooth_l1(A, x, b, epsilon)
-        t_list[i] = time() - t_start
+        # t_list[i] = time() - t_start
+        t_list[i] = perf_counter() - t_start
         i_list[i] = i+1
         outer_step += 1
     return f_list, t_list, i_list
@@ -365,3 +369,4 @@ if __name__ == "__main__":
     # min_smooth_l1_newton(A, b, forward_tracking=True, diag_approx=True)
     # x, sparsity, _ = min_smooth_card_gradient_descent(A, b, gamma=2.2)
     # min_sparse_l2(A, b, sparsity)
+    

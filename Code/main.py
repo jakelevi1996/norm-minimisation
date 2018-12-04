@@ -346,41 +346,43 @@ def plot_against_epsilon(
 
 def plot_newton_vs_gradient_descent(
     i_filename="Images/f against i",
-    t_filename="Images/f against t", problem_num=2
+    t_filename="Images/f against t",
+    problem_num=2, num_attempts=3, n_its_gd=1650, n_its_newton=23
 ):
     A, b = fileio.load_A_b(problem_num)
-    # f_list_gd, t_list_gd, i_list_gd = [], [], []
-    # f_list_n, t_list_n, i_list_n = [], [], []
-    # f_list_gdf, t_list_gdf, i_list_gdf = [], [], []
-    # f_list_nf, t_list_nf, i_list_nf = [], [], []
-    # f_list_nd, t_list_nd, i_list_nd = [], [], []
-    # f_list = [[[] for _ in range(3)] for _ in range(5)]
-    # t_list = [[[] for _ in range(3)] for _ in range(5)]
-    # i_list = [[[] for _ in range(3)] for _ in range(5)]
-
+    f_list = [[None for _ in range(num_attempts)] for _ in range(5)]
+    t_list = [[None for _ in range(num_attempts)] for _ in range(5)]
+    i_list = [[None for _ in range(num_attempts)] for _ in range(5)]
     
-    f_list_gd, t_list_gd, i_list_gd = lo.fixed_its_gd(
-        A, b, nits=1650, verbose=False
-    )
-    f_list_n, t_list_n, i_list_n = lo.fixed_its_newton(
-        A, b, nits=23, verbose=False
-    )
-    f_list_gdf, t_list_gdf, i_list_gdf = lo.fixed_its_gd(
-        A, b, nits=1650, forward_tracking=True, verbose=False
-    )
-    f_list_nf, t_list_nf, i_list_nf = lo.fixed_its_newton(
-        A, b, nits=23, forward_tracking=True, verbose=False
-    )
-    f_list_nd, t_list_nd, i_list_nd = lo.fixed_its_newton(
-        A, b, nits=1650, diag_approx=True, verbose=False
-    )
+    lo.fixed_its_gd(A, b, nits=n_its_gd, verbose=False)
+    for a in range(num_attempts):
+        print("attempt", a+1)
+        f_list[0][a], t_list[0][a], i_list[0][a] = lo.fixed_its_gd(
+            A, b, nits=n_its_gd, verbose=False
+        )
+        f_list[1][a], t_list[1][a], i_list[1][a] = lo.fixed_its_gd(
+            A, b, nits=n_its_gd, forward_tracking=True, verbose=False
+        )
+        f_list[2][a], t_list[2][a], i_list[2][a] = lo.fixed_its_newton(
+            A, b, nits=n_its_newton, verbose=False
+        )
+        f_list[3][a], t_list[3][a], i_list[3][a] = lo.fixed_its_newton(
+            A, b, nits=n_its_newton, forward_tracking=True, verbose=False
+        )
+        f_list[4][a], t_list[4][a], i_list[4][a] = lo.fixed_its_newton(
+            A, b, nits=n_its_gd, diag_approx=True, verbose=False
+        )
 
     plt.figure(figsize=[8, 6])
-    plt.semilogx(
-        i_list_gd, f_list_gd, "b-", i_list_gdf, f_list_gdf, "b:",
-        i_list_n, f_list_n, "g-", i_list_nf, f_list_nf, "g:",
-        i_list_nd, f_list_nd, "g--"
-    )
+    for a in range(num_attempts):
+        plt.semilogx(
+            i_list[0][a], f_list[0][a], "b-",
+            i_list[1][a], f_list[1][a], "b:",
+            i_list[2][a], f_list[2][a], "g-",
+            i_list[3][a], f_list[3][a], "g:",
+            i_list[4][a], f_list[4][a], "g--",
+            alpha=0.3
+        )
     plt.xlabel("Iteration")
     plt.ylabel("Objective function value")
     plt.title("Performance against iteration")
@@ -393,12 +395,15 @@ def plot_newton_vs_gradient_descent(
     plt.close()
 
     plt.figure(figsize=[8, 6])
-    plt.semilogx(
-        t_list_gd, f_list_gd, "b-", t_list_gdf, f_list_gdf, "b:",
-        t_list_n, f_list_n, "g-", t_list_nf, f_list_nf, "g:",
-        t_list_nd, f_list_nd, "g--"
-    )
-    plt.xlim(left=1e-3)
+    for a in range(num_attempts):
+        plt.semilogx(
+            t_list[0][a], f_list[0][a], "b-",
+            t_list[1][a], f_list[1][a], "b:",
+            t_list[2][a], f_list[2][a], "g-",
+            t_list[3][a], f_list[3][a], "g:",
+            t_list[4][a], f_list[4][a], "g--",
+            alpha=0.3
+        )
     plt.xlabel("Time (s)")
     plt.ylabel("Objective function value")
     plt.title("Performance against time")
@@ -446,5 +451,5 @@ if __name__ == "__main__":
     # find_t_vals_l1()
     # plot_t_graphs_l1()
     # plot_against_epsilon()
-    plot_newton_vs_gradient_descent()
+    plot_newton_vs_gradient_descent(n_its_gd=250)
     # card_vs_gamma()

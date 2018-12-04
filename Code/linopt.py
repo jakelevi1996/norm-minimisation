@@ -204,7 +204,7 @@ def display_cardinality_results(x, gamma, cardinality, sparsity):
         np.arange(x.size)[sparsity] + 1
     )
 
-def min_smooth_card_gradient_descent(
+def min_smooth_card_gd(
     A, b, epsilon=1e-3, gamma=2.09, t0=1e-2, alpha=0.5, beta=0.5,
     grad_tol=1e-5, random_init=False, forward_tracking=True,
     verbose=True, very_verbose=True
@@ -367,6 +367,6 @@ if __name__ == "__main__":
     min_smooth_l1_gradient_descent(A, b, epsilon=1e-1, forward_tracking=True)
     min_smooth_l1_newton(A, b, forward_tracking=True)
     # min_smooth_l1_newton(A, b, forward_tracking=True, diag_approx=True)
-    # x, sparsity, _ = min_smooth_card_gradient_descent(A, b, gamma=2.2)
+    # x, sparsity, _ = min_smooth_card_gd(A, b, gamma=2.2)
     # min_sparse_l2(A, b, sparsity)
     

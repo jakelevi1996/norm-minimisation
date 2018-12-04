@@ -416,23 +416,26 @@ def plot_newton_vs_gradient_descent(
     plt.close()
 
 def card_vs_gamma(
-    filename="Images/Cardinality vs gamma", gamma_lims=[-0.5, 0.5],
-    problem_num=5
+    filename="Images/Cardinality as a function of gamma", problem_num=5,
+    num_gamma=50, gamma_lims=[-0.5, 0.5], epsilon_list=[1e-3/4, 1e-3, 1e-3*4, ]
 ):
     A, b = fileio.load_A_b(problem_num)
-    gamma_list = np.logspace(*gamma_lims)
-    card_list = np.zeros(gamma_list.size)
-    for i, g in enumerate(gamma_list):
-        _, _, card_list[i], _, _ = lo.min_smooth_card_gradient_descent(
-            A, b, gamma=g, forward_tracking=True,
-            verbose=False, very_verbose=False
-        )
-        print(g)
+    gamma_list = np.logspace(*gamma_lims, num_gamma)
+    card_list = np.zeros([len(epsilon_list), gamma_list.size])
+    for ie, e in enumerate(epsilon_list):
+        for ig, g in enumerate(gamma_list):
+            _, _, card_list[ie, ig], _, _ = lo.min_smooth_card_gd(
+                A, b, epsilon=e, gamma=g, forward_tracking=True,
+                verbose=False, very_verbose=False
+            )
+            print(g, card_list[ie, ig])
     plt.figure(figsize=[8, 6])
-    plt.loglog(gamma_list, card_list)
+    for ie in range(len(epsilon_list)):
+        plt.loglog(gamma_list, card_list[ie])
     plt.xlabel("gamma")
     plt.ylabel("Cardinality")
-    plt.title("Cardinality against gamma")
+    plt.title("Cardinality as a function of gamma for varying epsilon")
+    plt.legend(["Epsilon = {:.3}".format(e) for e in epsilon_list])
     plt.grid(True)
     plt.savefig(filename)
     plt.close()
@@ -451,5 +454,5 @@ if __name__ == "__main__":
     # find_t_vals_l1()
     # plot_t_graphs_l1()
     # plot_against_epsilon()
-    plot_newton_vs_gradient_descent(n_its_gd=250)
-    # card_vs_gamma()
+    # plot_newton_vs_gradient_descent(n_its_gd=250)
+    card_vs_gamma()

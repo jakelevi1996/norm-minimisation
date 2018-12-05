@@ -204,12 +204,17 @@ def compare_smooth_to_exact_l1(problem_num=1):
     _, lp_value, lp_time, nit = lo.l1_min(
         A, b, method="simplex", verbose=False
     )
-    print_l1_perf("LP (simplex)", lp_value, nit, lp_time)
+    print_l1_perf("LP (simp)", lp_value, nit, lp_time)
     # Newton method
+    _, smooth_value, smooth_time, nit = lo.min_smooth_l1_newton(
+        A, b, forward_tracking=False, verbose=False
+    )
+    print_l1_perf("Newton", smooth_value, nit, smooth_time)
+    # Newton method, forward-tracking
     _, smooth_value, smooth_time, nit = lo.min_smooth_l1_newton(
         A, b, forward_tracking=True, verbose=False
     )
-    print_l1_perf("Newton", smooth_value, nit, smooth_time)
+    print_l1_perf("Newt fwd", smooth_value, nit, smooth_time)
 
 def print_l1_perf_brief(solution_strategy, time):
     print("Finished {:<10} in {:.4} s".format(solution_strategy, time))
@@ -306,40 +311,36 @@ def plot_t_graphs_l1(
 
 
 def plot_against_epsilon(
-    f_filename="Images/f against epsilon",
-    t_filename="Images/t against epsilon", eps_lims=[-3, -1], problem_num=1
+    f_filename="Images/Final cost against epsilon",
+    t_filename="Images/Convergence rate against epsilon",
+    eps_lims=[-3, -1], problem_num=1, num_eps=50,  num_attempts=3
 ):
     A, b = fileio.load_A_b(problem_num)
-    epsilon_list = np.logspace(*eps_lims)
-    t_back_list = np.zeros(epsilon_list.size)
-    t_forwards_list = np.zeros(epsilon_list.size)
+    epsilon_list = np.logspace(*eps_lims, num_eps)
+    t_list = np.zeros([num_attempts, epsilon_list.size])
     f_list = np.zeros(epsilon_list.size)
 
     for i, eps in enumerate(epsilon_list):
-        print("epsilon = {:.4}".format(eps))
-        _, f_list[i], t_back_list[i], _ = lo.min_smooth_l1_gradient_descent(
-            A, b, epsilon=eps, forward_tracking=False, verbose=False
-        )
-        _, _, t_forwards_list[i], _ = lo.min_smooth_l1_gradient_descent(
-            A, b, epsilon=eps, forward_tracking=True, verbose=False
-        )
+        for a in range(num_attempts):
+            _, f_list[i], t_list[a, i], _ = lo.min_smooth_l1_gradient_descent(
+                A, b, epsilon=eps, forward_tracking=False, verbose=False
+            )
+            print("epsilon = {:.4}, t = {:.4} s".format(eps, t_list[a, i]))
     plt.figure(figsize=[8, 6])
-    plt.semilogx(epsilon_list, f_list)
+    plt.semilogx(epsilon_list, f_list, "b")
     plt.xlabel("Epsilon")
     plt.ylabel("Final objective function value")
-    plt.title("Final performance against epsilon for fixed gradient tolerance")
+    plt.title("Final performance as a function of epsilon")
     plt.grid(True)
     plt.savefig(f_filename)
     plt.close()
 
     plt.figure(figsize=[8, 6])
-    plt.loglog(epsilon_list, t_back_list, epsilon_list, t_forwards_list)
+    for a in range(num_attempts):
+        plt.loglog(epsilon_list, t_list[a], "b", alpha=0.3)
     plt.xlabel("Epsilon")
     plt.ylabel("Time taken for convergence (s)")
-    plt.title("Computation time against epsilon for fixed gradient tolerance")
-    plt.legend([
-        "Backtracking line-search", "Backtracking with forward-tracking"
-    ])
+    plt.title("Convergence rate as a function of epsilon")
     plt.grid(True)
     plt.savefig(t_filename)
     plt.close()
@@ -446,13 +447,22 @@ if __name__ == "__main__":
     # find_t_vals(problem_list=range(1, 2), save_results=True, num_attempts=1)
     # find_t_vals()
     print_t_tables()
-    # print_residuals_tables()
+    print_residuals_tables()
     # [print_residuals_tables(p=p) for p in [1, 2, np.inf]]
     # plot_t_graphs()
     # residual_histograms()
+    # compare_smooth_to_exact_l1(1)
     # compare_smooth_to_exact_l1(2)
     # find_t_vals_l1()
     # plot_t_graphs_l1()
     # plot_against_epsilon()
     # plot_newton_vs_gradient_descent(n_its_gd=250)
-    card_vs_gamma()
+    # card_vs_gamma()
+
+
+
+
+    # for i in range(1, 6):
+    #     A, b = fileio.load_A_b(i)
+    #     _, val, t, _ = lo.min_smooth_l1_newton(A, b, verbose=False)
+    #     print(val, t)

@@ -103,7 +103,7 @@ def min_smooth_l1_gradient_descent(
     n = A.shape[1]
     outer_step = 0
     t = t0
-    t_start = time()
+    t_start = perf_counter()
     if random_init: x = np.random.normal(size=n)
     else: x = np.zeros(shape=n)
     grad = smooth_l1_gradient(A, x, b, epsilon)
@@ -133,7 +133,7 @@ def min_smooth_l1_gradient_descent(
             outer_step, inner_step, grad, A, x, b, epsilon
         )
         outer_step += 1
-    time_taken = time() - t_start
+    time_taken = perf_counter() - t_start
     objective_value = smooth_l1(A, x, b, epsilon)
     return x, objective_value, time_taken, outer_step
 
@@ -199,8 +199,8 @@ def smooth_card_backtrack_condition(
 
 def display_cardinality_results(x, gamma, cardinality, sparsity):
     print(
-        "Gamma = {:.4}, cardinality = {},".format(gamma, cardinality),
-        "Sparsity pattern (indexing starting at 1) is:\n",
+        "\nGamma = {:.4}, cardinality = {},".format(gamma, cardinality),
+        "Sparsity pattern (indexing starts at 1) is:\n",
         np.arange(x.size)[sparsity] + 1
     )
 
@@ -254,7 +254,7 @@ def min_sparse_l2(A, b, sparsity):
     x, residual, rank, _ = np.linalg.lstsq(A, b, rcond=None)
     print(
         "Residual is {:.8g}, rank is {}, ".format(*residual, rank),
-        "Values of x are\n:", x
+        "Values of x are:\n", *["{:.4}".format(i) for i in x]
     )
     return x
 
@@ -358,15 +358,15 @@ def fixed_its_newton(
 
 if __name__ == "__main__":
     A, b = fileio.load_A_b(5, verbose=True)
-    for i in range(1, 3):
-        A, b = fileio.load_A_b(i)
-        # x, _, _, _ = l1_min(A, b, method='interior-point')
-        x, solution_norm, t, _ = linf_min(A, b, method='interior-point')
-        # x, _, _, _ = l2_min(A, b)
-    A, b = fileio.load_A_b(2, verbose=True)
-    min_smooth_l1_gradient_descent(A, b, epsilon=1e-1, forward_tracking=True)
-    min_smooth_l1_newton(A, b, forward_tracking=True)
+    # for i in range(1, 3):
+    #     A, b = fileio.load_A_b(i)
+    #     # x, _, _, _ = l1_min(A, b, method='interior-point')
+    #     x, solution_norm, t, _ = linf_min(A, b, method='interior-point')
+    #     # x, _, _, _ = l2_min(A, b)
+    # A, b = fileio.load_A_b(2, verbose=True)
+    # min_smooth_l1_gradient_descent(A, b, epsilon=1e-1, forward_tracking=True)
+    # min_smooth_l1_newton(A, b, forward_tracking=True)
     # min_smooth_l1_newton(A, b, forward_tracking=True, diag_approx=True)
-    # x, sparsity, _ = min_smooth_card_gd(A, b, gamma=2.2)
-    # min_sparse_l2(A, b, sparsity)
+    x, sparsity, _, _, _ = min_smooth_card_gd(A, b, gamma=2.1)
+    min_sparse_l2(A, b, sparsity)
     

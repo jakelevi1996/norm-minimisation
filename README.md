@@ -1,7 +1,7 @@
 
-# practical-optimisation
+# Norm Minimisation
 
-*Coming soon.*
+Minimise L1, L2 and Linf norms using approximate gradient-based approaches and compare with exact least-squares and linear-programming methods
 
 ## File structure description
 
